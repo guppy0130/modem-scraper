@@ -1,0 +1,26 @@
+[package]
+name = "modem-scraper"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+config = "0.13"
+modem-scraper-lib = { path = "modem-scraper-lib" }
+opentelemetry = { version = "0.18.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.11.0", features = [
+  "http-proto",
+  "reqwest-client",
+] }
+log = "0.4"
+reqwest = { version = "0.11", features = ["json"] }
+serde = "1"
+serde_json = "1"
+telegraf = "0.5"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-log = "0.1"
+tracing-opentelemetry = "0.18.0"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-unwrap = "0.10"

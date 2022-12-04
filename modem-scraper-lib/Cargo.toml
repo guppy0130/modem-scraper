@@ -1,0 +1,20 @@
+[package]
+name = "modem-scraper-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+reqwest = { version = "0.11", features = ["json"] }
+md-5 = "0.10.5"
+hmac = "0.12.1"
+hex = "0.4"
+log = "0.4"
+regex = "1"
+chrono = "0.4"
+telegraf = "0.5"
+serde = "1"
+serde_json = "1"
+tracing = "0.1"
+tracing-unwrap = "0.10"
+
+[lib]

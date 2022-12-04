@@ -1,0 +1,6 @@
+/target
+*.xml
+*.js
+*.yml
+.vscode/
+*.json
