@@ -1,0 +1,101 @@
+---
+name: "release"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+defaults:
+  run:
+    # necessary for windows
+    shell: bash
+
+# https://github.com/nicolas-van/rust-cross-compile-example/blob/main/.github/workflows/rust.yml
+jobs:
+  deploy:
+    name: "deploy"
+    strategy:
+      matrix:
+        include:
+          - TARGET: x86_64-unknown-linux-gnu
+            OS: ubuntu-latest
+          - TARGET: x86_64-unknown-linux-musl
+            OS: ubuntu-latest
+          - TARGET: aarch64-unknown-linux-gnu
+            OS: ubuntu-latest
+          - TARGET: aarch64-unknown-linux-musl
+            OS: ubuntu-latest
+          # - TARGET: armv7-unknown-linux-gnueabihf
+          #   OS: ubuntu-latest
+          # - TARGET: armv7-unknown-linux-musleabihf
+          #   OS: ubuntu-latest
+          # - TARGET: arm-unknown-linux-gnueabihf
+          #   OS: ubuntu-latest
+          # - TARGET: arm-unknown-linux-musleabihf
+          #   OS: ubuntu-latest
+          - TARGET: x86_64-apple-darwin # tested on a mac, is not properly signed so there are security warnings
+            OS: macos-latest
+          - TARGET: x86_64-pc-windows-msvc # tested on a windows machine
+            OS: windows-latest
+    runs-on: "${{ matrix.OS }}"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+
+      - name: "Cargo cache"
+        uses: "actions/cache@v3"
+        with:
+          path: |
+            ~/.cargo/registry
+            ./target
+          key: "build-cargo-registry-${{matrix.TARGET}}"
+
+      - name: "Install and configure dependencies"
+        run: |
+          # dependencies are only needed on ubuntu as that's the only place
+          # where we do cross-compilation
+          if [[ $OS =~ ^ubuntu.*$ ]]; then
+            sudo apt update && sudo apt-get install -qq crossbuild-essential-arm64 protobuf-compiler libssl-dev pkg-config
+          elif [[ $OS =~ ^macos.*$ ]]; then
+            brew install protobuf
+          elif  [[ $OS =~ ^windows.*$ ]]; then
+            choco install protoc
+          fi
+          # some additional configuration for cross-compilation on linux
+          # cat >>~/.cargo/config <<EOF
+          # [target.aarch64-unknown-linux-gnu]
+          # linker = "aarch64-linux-gnu-gcc"
+          # [target.aarch64-unknown-linux-musl]
+          # linker = "aarch64-linux-gnu-gcc"
+          # [target.armv7-unknown-linux-gnueabihf]
+          # linker = "arm-linux-gnueabihf-gcc"
+          # [target.armv7-unknown-linux-musleabihf]
+          # linker = "arm-linux-gnueabihf-gcc"
+          # [target.arm-unknown-linux-gnueabihf]
+          # linker = "arm-linux-gnueabihf-gcc"
+          # [target.arm-unknown-linux-musleabihf]
+          # linker = "arm-linux-gnueabihf-gcc"
+          # EOF
+
+      - name: "Install rust"
+        uses: "actions-rs/toolchain@v1"
+        with:
+          toolchain: "stable"
+          profile: "minimal"
+          override: true
+          target: "${{ matrix.TARGET }}"
+
+      - name: "Build target"
+        uses: "actions-rs/cargo@v1"
+        with:
+          use-cross: true
+          command: "build"
+          args: "--config net.git-fetch-with-cli=true --release --target ${{ matrix.TARGET }}"
+
+      - name: "Publish"
+        uses: "softprops/action-gh-release@v1"
+        with:
+          files: "target/**/release/modem-scraper*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

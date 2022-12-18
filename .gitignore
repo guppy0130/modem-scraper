@@ -4,3 +4,4 @@
 *.yml
 .vscode/
 *.json
+!.github/workflows
