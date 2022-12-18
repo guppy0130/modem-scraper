@@ -1,0 +1,49 @@
+---
+name: "build and test"
+
+on:
+  pull_request:
+
+defaults:
+  run:
+    # necessary for windows
+    shell: bash
+
+jobs:
+  build_and_test:
+    name: "build and test"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+
+      - name: Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ./target
+          key: build-cargo-registry-x86_64-unknown-linux-gnu
+
+      - name: "Install rust"
+        uses: "actions-rs/toolchain@v1"
+        with:
+          toolchain: "stable"
+          profile: "minimal"
+          override: true
+
+      - name: "Install and configure dependencies"
+        run: |
+          sudo apt-get update && sudo apt-get install -qq protobuf-compiler libssl-dev pkg-config
+
+      - name: "Build debug"
+        uses: "actions-rs/cargo@v1"
+        with:
+          command: "build"
+          # https://github.com/rust-lang/cargo/issues/10583
+          args: "--config net.git-fetch-with-cli=true"
+
+      - name: "Test"
+        uses: "actions-rs/cargo@v1"
+        with:
+          command: "test"
