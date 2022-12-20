@@ -66,8 +66,9 @@ where
     Ok(DateTime::<Utc>::from_local(datetime, Utc))
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LogEntry {
+    // should be ordered by date
     pub timestamp: DateTime<Utc>,
     pub level: Level,
     pub message: String,

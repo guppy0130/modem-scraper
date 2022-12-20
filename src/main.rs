@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use config::Config;
 use log::{error, Level};
-use modem_scraper::construct_loki_streams;
+use modem_scraper::{construct_loki_streams, FixedSizeSortedHashSet};
 use modem_scraper_lib::payloads::s33::{
     GetMultipleHNAPsLogsResponse, GetMultipleHNAPsMetricsResponse,
 };
-use modem_scraper_lib::payloads::Channel;
+use modem_scraper_lib::payloads::{Channel, LogEntry};
 use modem_scraper_lib::SOAPClient;
 use opentelemetry::sdk::{trace, Resource};
 use opentelemetry::KeyValue;
@@ -54,6 +54,7 @@ async fn logs_to_loki(
     logs: GetMultipleHNAPsLogsResponse,
     http_client: &reqwest::Client,
     loki_url: String,
+    seen_logs: &mut FixedSizeSortedHashSet<LogEntry>,
 ) -> Result<reqwest::Response, reqwest::Error> {
     let labels = HashMap::from([("app".to_owned(), "modem_scraper".to_owned())]);
     let streams = construct_loki_streams(
@@ -62,13 +63,21 @@ async fn logs_to_loki(
             .customer_status_log_list
             .iter()
             .map(|log_entry| {
-                (
-                    log_entry.level,
-                    u128::try_from(log_entry.timestamp.timestamp_nanos()).unwrap_or_log(),
-                    log_entry.message.to_owned(),
-                )
+                // if we haven't seen this log entry yet, add it so that we're not repeating logs.
+                // since seen_logs is a hash set, this should be an O(1) lookup.
+                if !seen_logs.contains(log_entry) {
+                    seen_logs.insert(log_entry.clone());
+                    // return the destructured tuple for sending to Loki
+                    Some((
+                        log_entry.level,
+                        u128::try_from(log_entry.timestamp.timestamp_nanos()).unwrap_or_log(),
+                        log_entry.message.to_owned(),
+                    ))
+                } else {
+                    None
+                }
             })
-            .collect::<Vec<(Level, u128, String)>>(),
+            .collect::<Vec<Option<(Level, u128, String)>>>(),
     );
 
     http_client.post(loki_url).json(&streams).send().await
@@ -131,6 +140,8 @@ async fn main() {
             )
             .await;
 
+        let mut last_n_logs: FixedSizeSortedHashSet<LogEntry> =
+            FixedSizeSortedHashSet::with_capacity(30);
         loop {
             let metrics: GetMultipleHNAPsMetricsResponse = modem_client.metrics().await;
             match metrics_to_telegraf(metrics, &mut telegraf_client) {
@@ -142,6 +153,7 @@ async fn main() {
                 logs_response,
                 &http_client,
                 settings.get_string("logs_address").unwrap(),
+                &mut last_n_logs,
             )
             .await
             .unwrap_or_log();
