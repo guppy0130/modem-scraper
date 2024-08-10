@@ -62,8 +62,7 @@ where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    let datetime = NaiveDateTime::parse_from_str(&s, "%c").unwrap();
-    Ok(DateTime::<Utc>::from_local(datetime, Utc))
+    Ok(NaiveDateTime::parse_from_str(&s, "%c").unwrap().and_utc())
 }
 
 #[derive(Debug, Clone)]
@@ -91,8 +90,7 @@ where
         let capture_time = captures.name("time").unwrap().as_str();
         let capture_date = captures.name("date").unwrap().as_str();
         let capture_datetime = capture_date.to_owned() + " " + capture_time;
-        let naive_date = NaiveDateTime::parse_from_str(&capture_datetime, "%d/%m/%Y %T").unwrap();
-        let timestamp = DateTime::<Utc>::from_local(naive_date, Utc);
+        let timestamp = NaiveDateTime::parse_from_str(&capture_datetime, "%d/%m/%Y %T").unwrap().and_utc();
 
         let level: Level = match captures
             .name("level")
