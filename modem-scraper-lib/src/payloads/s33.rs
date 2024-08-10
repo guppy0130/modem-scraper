@@ -198,8 +198,7 @@ where
         } else if upstream_channel_regex.is_match(line) {
             captures = upstream_channel_regex.captures(line).unwrap();
         } else {
-            return Err(format!("Unable to match {} with any channel regex", line).as_str())
-                .map_err(Error::custom);
+            return Err(Error::custom(format!("Unable to match {} with any channel regex", line).as_str()));
         }
 
         let channel_id: u8 = captures
