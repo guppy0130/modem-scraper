@@ -64,7 +64,8 @@ async fn logs_to_loki(
             .map(|log_entry| {
                 (
                     log_entry.level,
-                    u128::try_from(log_entry.timestamp.timestamp_nanos()).unwrap_or_log(),
+                    u128::try_from(log_entry.timestamp.timestamp_nanos_opt().unwrap())
+                        .unwrap_or_log(),
                     log_entry.message.to_owned(),
                 )
             })
